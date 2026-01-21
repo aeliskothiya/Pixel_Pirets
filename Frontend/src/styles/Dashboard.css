@@ -1,0 +1,48 @@
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 20px 30px;
+}
+
+.dashboard-header h1 {
+  margin: 0;
+  color: white;
+  font-size: 24px;
+}
+
+.dashboard-content {
+  padding: 30px;
+  background: #f5f5f5;
+}
+
+.stats-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.stats-container .ant-card {
+  text-align: center;
+}
+
+.tab-content {
+  padding: 20px 0;
+}
+
+.table-margin-top {
+  margin-top: 20px;
+}
+
+.scores-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.score-card {
+  text-align: center;
+}
