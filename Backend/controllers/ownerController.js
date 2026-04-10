@@ -10,6 +10,14 @@ export const registerOwner = async (req, res) => {
   try {
     const { name, email, password, teamName, teamCode, ownerContact } = req.body;
 
+    // Validate required fields
+    if (!name || !email || !password || !teamName || !teamCode || !ownerContact) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide all required fields'
+      });
+    }
+
     // Check if owner exists
     let owner = await Owner.findOne({ email });
     if (owner) {
@@ -19,10 +27,19 @@ export const registerOwner = async (req, res) => {
       });
     }
 
-    // Create team
+    // Create owner first (without team reference initially)
+    owner = await Owner.create({
+      name,
+      email,
+      password,
+      role: 'owner'
+    });
+
+    // Now create team with owner reference
     const team = await Team.create({
       teamName,
       teamCode: teamCode.toUpperCase(),
+      owner: owner._id,
       ownerDetails: {
         name,
         email,
@@ -30,18 +47,9 @@ export const registerOwner = async (req, res) => {
       }
     });
 
-    // Create owner
-    owner = await Owner.create({
-      name,
-      email,
-      password,
-      team: team._id,
-      role: 'owner'
-    });
-
-    // Update team with owner reference
-    team.owner = owner._id;
-    await team.save();
+    // Update owner with team reference
+    owner.team = team._id;
+    await owner.save();
 
     const token = generateToken(owner);
 
@@ -344,6 +352,29 @@ export const assignEvents = async (req, res) => {
       });
     }
 
+    // Check for time conflicts between events
+    for (let i = 0; i < events.length; i++) {
+      for (let j = i + 1; j < events.length; j++) {
+        const event1 = events[i];
+        const event2 = events[j];
+        
+        // Check if events overlap in time
+        const event1Start = new Date(event1.startTime);
+        const event1End = new Date(event1.endTime);
+        const event2Start = new Date(event2.startTime);
+        const event2End = new Date(event2.endTime);
+        
+        // Events overlap if:
+        // event1 starts before event2 ends AND event1 ends after event2 starts
+        if (event1Start < event2End && event1End > event2Start) {
+          return res.status(400).json({
+            success: false,
+            message: `Time conflict: "${event1.eventName}" and "${event2.eventName}" have overlapping schedules`
+          });
+        }
+      }
+    }
+
     technocrat.assignedEvents = eventIds;
     await technocrat.save();
 
@@ -403,26 +434,28 @@ export const setIconPlayer = async (req, res) => {
     const owner = await Owner.findById(req.user.id);
     const { technocratId } = req.body;
 
+    // Validate technocrat belongs to this owner's team
+    const technocrat = await Technocrat.findById(technocratId);
+    if (!technocrat || technocrat.team.toString() !== owner.team.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to set this technocrat as icon player'
+      });
+    }
+
     const team = await Team.findById(owner.team);
 
     // If there's an existing icon player, remove the flag
-    if (team.iconPlayer) {
+    if (team.iconPlayer && team.iconPlayer.toString() !== technocratId) {
       await Technocrat.findByIdAndUpdate(team.iconPlayer, { isIconPlayer: false });
     }
 
     // Set new icon player
-    const technocrat = await Technocrat.findByIdAndUpdate(
+    const updatedTechnocrat = await Technocrat.findByIdAndUpdate(
       technocratId,
       { isIconPlayer: true },
       { new: true }
     );
-
-    if (!technocrat || technocrat.team.toString() !== owner.team.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized'
-      });
-    }
 
     team.iconPlayer = technocratId;
     await team.save();
@@ -430,7 +463,7 @@ export const setIconPlayer = async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'Icon player set successfully',
-      iconPlayer: technocrat
+      iconPlayer: updatedTechnocrat
     });
   } catch (error) {
     res.status(500).json({
@@ -484,6 +517,23 @@ export const getLeaderboard = async (req, res) => {
     res.status(200).json({
       success: true,
       leaderboard: teams
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// Get All Events (for event assignment)
+export const getAllEvents = async (req, res) => {
+  try {
+    const events = await Event.find().select('_id eventName eventType');
+
+    res.status(200).json({
+      success: true,
+      events
     });
   } catch (error) {
     res.status(500).json({

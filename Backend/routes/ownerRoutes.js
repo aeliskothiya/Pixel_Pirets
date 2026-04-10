@@ -11,7 +11,8 @@ import {
   removeEventAssignment,
   setIconPlayer,
   getTeamScores,
-  getLeaderboard
+  getLeaderboard,
+  getAllEvents
 } from '../controllers/ownerController.js';
 import { protect, authorize } from '../middleware/auth.js';
 
@@ -36,6 +37,9 @@ router.delete('/remove-event/:technocratId/:eventId', protect, authorize('owner'
 
 // Icon Player
 router.post('/set-icon-player', protect, authorize('owner'), setIconPlayer);
+
+// Events
+router.get('/all-events', protect, authorize('owner'), getAllEvents);
 
 // Scores & Leaderboard
 router.get('/team-scores', protect, authorize('owner'), getTeamScores);

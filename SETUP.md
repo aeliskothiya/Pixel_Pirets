@@ -42,7 +42,7 @@ mongod --dbpath "C:\path\to\data"
 MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/pixel_pirates
 ```
 
-### STEP 6: Seed Coordinator (Optional)
+### STEP 6: Seed Coordinator (REQUIRED - Do This First!)
 ```bash
 npm run seed
 # Creates default coordinator with:
@@ -50,20 +50,34 @@ npm run seed
 # Password: admin@123
 ```
 
+This must be done BEFORE starting the app for the first time!
+
 ---
 
 ## 🎯 RUNNING THE APPLICATION
 
-### Option A: Manual Start (2 Terminals)
+### IMPORTANT: Seed Coordinator First!
+Before starting, you MUST create the coordinator account:
+```bash
+npm run seed
+```
 
-**Terminal 1 - Backend:**
+### Option A: Manual Start (3 Terminals - CORRECT ORDER)
+
+**Terminal 1 - MongoDB (Start First):**
+```bash
+mongod
+# Should show: waiting for connections on port 27017
+```
+
+**Terminal 2 - Backend:**
 ```bash
 npm run dev
 # Starts on http://localhost:5000
 # You'll see: "Server running on port 5000"
 ```
 
-**Terminal 2 - Frontend:**
+**Terminal 3 - Frontend:**
 ```bash
 cd Frontend
 npm run dev
@@ -88,7 +102,33 @@ npm run preview
 
 ## 🎮 FIRST TIME USAGE
 
-### 1. Owner Registration (New User)
+### SETUP ORDER (DO IN THIS ORDER):
+
+1. **Make sure MongoDB is running:**
+   ```bash
+   mongod
+   ```
+
+2. **Seed the coordinator account:**
+   ```bash
+   npm run seed
+   # Output should show: ✅ Coordinator created successfully!
+   ```
+
+3. **Start backend:**
+   ```bash
+   npm run dev
+   ```
+
+4. **Start frontend (in new terminal):**
+   ```bash
+   cd Frontend
+   npm run dev
+   ```
+
+### NOW USE THE APP:
+
+#### Option A: Owner Registration (New Team)
 - Go to http://localhost:3000
 - Click "Register as Owner"
 - Fill in:
@@ -98,13 +138,14 @@ npm run preview
   - Team Name: Your Team
   - Team Code: TEAM001
   - Mobile: 9876543210
-- Click Register → Auto-redirects to Owner Dashboard
+- Click Register → Auto-redirects to Owner Dashboard ✅
 
-### 2. Coordinator Login (Pre-created)
+#### Option B: Coordinator Login (Pre-created)
 - Navigate to http://localhost:3000/coordinator/login
 - Use credentials:
   - Email: admin@pixelpirates.com
   - Password: admin@123
+- Click Login → Redirects to Coordinator Dashboard ✅
 
 ---
 

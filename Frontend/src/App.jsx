@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext.jsx';
 import { PrivateRoute } from './components/PrivateRoute';
+import { HomePage } from './pages/HomePage';
 import { OwnerRegister } from './pages/OwnerRegister';
 import { OwnerLogin } from './pages/OwnerLogin';
 import { CoordinatorLogin } from './pages/CoordinatorLogin';
@@ -11,11 +12,13 @@ import './App.css';
 
 function App() {
   return (
-    <Router>
+    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AuthProvider>
         <Routes>
+          {/* Home Page */}
+          <Route path="/" element={<HomePage />} />
+          
           {/* Auth Routes */}
-          <Route path="/" element={<Navigate to="/owner/login" />} />
           <Route path="/owner/register" element={<OwnerRegister />} />
           <Route path="/owner/login" element={<OwnerLogin />} />
           <Route path="/coordinator/login" element={<CoordinatorLogin />} />

@@ -184,8 +184,9 @@ export const getParticipationDetails = async (req, res) => {
 // Create Event
 export const createEvent = async (req, res) => {
   try {
-    const { eventName, eventType, points } = req.body;
+    const { eventName, eventType, points, requiredMembers, startTime, endTime, venue } = req.body;
 
+    // Validate points
     if (!points.first || !points.second || !points.third) {
       return res.status(400).json({
         success: false,
@@ -193,9 +194,61 @@ export const createEvent = async (req, res) => {
       });
     }
 
+    // Validate time and venue
+    if (!startTime || !endTime || !venue) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide start time, end time, and venue'
+      });
+    }
+
+    // Validate time order
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    if (end <= start) {
+      return res.status(400).json({
+        success: false,
+        message: 'End time must be after start time'
+      });
+    }
+
+    // Validate required members based on event type
+    if (!requiredMembers) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide required members count'
+      });
+    }
+
+    // Check event type requirements
+    if (eventType === 'Solo' && requiredMembers !== 1) {
+      return res.status(400).json({
+        success: false,
+        message: 'Solo events must have exactly 1 member'
+      });
+    }
+
+    if (eventType === 'Duet' && requiredMembers !== 2) {
+      return res.status(400).json({
+        success: false,
+        message: 'Duet events must have exactly 2 members'
+      });
+    }
+
+    if (eventType === 'Group' && requiredMembers < 3) {
+      return res.status(400).json({
+        success: false,
+        message: 'Group events must have 3 or more members'
+      });
+    }
+
     const event = await Event.create({
       eventName,
       eventType,
+      requiredMembers,
+      startTime: start,
+      endTime: end,
+      venue,
       points: {
         first: points.first,
         second: points.second,
@@ -257,24 +310,48 @@ export const editEvent = async (req, res) => {
 export const deleteEvent = async (req, res) => {
   try {
     const { eventId } = req.params;
+    const { force } = req.query; // Optional force parameter to cascade delete
 
-    // Check if results exist for this event
-    const results = await Result.find({ event: eventId });
-    if (results.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot delete event with existing results'
-      });
-    }
-
-    const event = await Event.findByIdAndDelete(eventId);
-
+    const event = await Event.findById(eventId);
+    
     if (!event) {
       return res.status(404).json({
         success: false,
         message: 'Event not found'
       });
     }
+
+    // Check if results exist for this event
+    const results = await Result.find({ event: eventId });
+    
+    if (results.length > 0 && force !== 'true') {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot delete event "${event.eventName}". This event has ${results.length} result(s) associated with it. Please delete the results first, or the event cannot be removed.`
+      });
+    }
+
+    // If force delete, remove all results and update team scores
+    if (results.length > 0 && force === 'true') {
+      for (const result of results) {
+        // Subtract points from team
+        const team = await Team.findById(result.team);
+        if (team) {
+          team.totalScore -= result.pointsAwarded;
+          await team.save();
+        }
+        // Delete the result
+        await Result.findByIdAndDelete(result._id);
+      }
+    }
+
+    // Remove this event from all technocrats' assignedEvents arrays
+    await Technocrat.updateMany(
+      { assignedEvents: eventId },
+      { $pull: { assignedEvents: eventId } }
+    );
+
+    await Event.findByIdAndDelete(eventId);
 
     res.status(200).json({
       success: true,
@@ -293,11 +370,48 @@ export const addResult = async (req, res) => {
   try {
     const { eventId, teamId, position, technocratIds } = req.body;
 
+    // Validate technocratIds array
+    if (!Array.isArray(technocratIds) || technocratIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide at least one technocrat'
+      });
+    }
+
     const event = await Event.findById(eventId);
     if (!event) {
       return res.status(404).json({
         success: false,
         message: 'Event not found'
+      });
+    }
+
+    // Validate required members count
+    if (technocratIds.length !== event.requiredMembers) {
+      return res.status(400).json({
+        success: false,
+        message: `This event requires exactly ${event.requiredMembers} member(s). You provided ${technocratIds.length}.`
+      });
+    }
+
+    // Verify all technocrats exist and belong to the same team
+    const technocrats = await Technocrat.find({
+      _id: { $in: technocratIds }
+    });
+
+    if (technocrats.length !== technocratIds.length) {
+      return res.status(404).json({
+        success: false,
+        message: 'Some technocrats not found'
+      });
+    }
+
+    // Check all technocrats belong to the same team
+    const allSameTeam = technocrats.every(t => t.team.toString() === teamId);
+    if (!allSameTeam) {
+      return res.status(400).json({
+        success: false,
+        message: 'All technocrats must belong to the same team'
       });
     }
 
@@ -334,7 +448,7 @@ export const addResult = async (req, res) => {
       team: teamId,
       position,
       pointsAwarded: positionMap[position],
-      technocrats: technocratIds || []
+      technocrats: technocratIds
     });
 
     // Update team's total score

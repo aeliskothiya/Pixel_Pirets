@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Card, Statistic, Table, Button, Modal, Form, Input, Select, message, Tabs, Space } from 'antd';
+import { Layout, Card, Statistic, Table, Button, Modal, Form, Input, Select, message, Tabs, Space, DatePicker } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, LogoutOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -19,6 +19,8 @@ export const CoordinatorDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [isEventModalVisible, setIsEventModalVisible] = useState(false);
   const [isResultModalVisible, setIsResultModalVisible] = useState(false);
+  const [selectedEventType, setSelectedEventType] = useState(null);
+  const [selectedEventForResult, setSelectedEventForResult] = useState(null);
   const [eventForm] = Form.useForm();
   const [resultForm] = Form.useForm();
 
@@ -75,14 +77,15 @@ export const CoordinatorDashboard = () => {
   const handleDeleteEvent = async (id) => {
     Modal.confirm({
       title: 'Delete Event',
-      content: 'Are you sure you want to delete this event?',
+      content: 'Are you sure you want to delete this event? If this event has results, they will need to be deleted first.',
       onOk: async () => {
         try {
           await coordinatorAPI.deleteEvent(id);
           message.success('Event deleted');
           fetchDashboardData();
         } catch (error) {
-          message.error('Failed to delete event');
+          const errorMsg = error.response?.data?.message || 'Failed to delete event';
+          message.error(errorMsg);
         }
       }
     });
@@ -107,6 +110,40 @@ export const CoordinatorDashboard = () => {
   const eventsColumns = [
     { title: 'Event Name', dataIndex: 'eventName', key: 'eventName' },
     { title: 'Type', dataIndex: 'eventType', key: 'type' },
+    { 
+      title: 'Venue', 
+      dataIndex: 'venue', 
+      key: 'venue' 
+    },
+    {
+      title: 'Start Time',
+      dataIndex: 'startTime',
+      key: 'startTime',
+      render: (time) => new Date(time).toLocaleString('en-US', { 
+        year: 'numeric',
+        month: 'short', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    },
+    {
+      title: 'End Time',
+      dataIndex: 'endTime',
+      key: 'endTime',
+      render: (time) => new Date(time).toLocaleString('en-US', { 
+        year: 'numeric',
+        month: 'short', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    },
+    {
+      title: 'Required Members',
+      dataIndex: 'requiredMembers',
+      key: 'requiredMembers'
+    },
     {
       title: 'Points',
       key: 'points',
@@ -187,55 +224,71 @@ export const CoordinatorDashboard = () => {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultActiveKey="1">
-          <Tabs.TabPane label="Teams" key="1">
-            <Table
-              columns={teamsColumns}
-              dataSource={teams}
-              rowKey="_id"
-              loading={loading}
-            />
-          </Tabs.TabPane>
-
-          <Tabs.TabPane label="Events" key="2">
-            <div className="tab-content">
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => setIsEventModalVisible(true)}
-              >
-                Add Event
-              </Button>
-              <Table
-                columns={eventsColumns}
-                dataSource={events}
-                rowKey="_id"
-                loading={loading}
-                className="table-margin-top"
-              />
-            </div>
-          </Tabs.TabPane>
-
-          <Tabs.TabPane label="Results" key="3">
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => setIsResultModalVisible(true)}
-              style={{ marginBottom: '20px' }}
-            >
-              Add Result
-            </Button>
-          </Tabs.TabPane>
-
-          <Tabs.TabPane label="Leaderboard" key="4">
-            <Table
-              columns={leaderboardColumns}
-              dataSource={leaderboard}
-              rowKey="_id"
-              loading={loading}
-            />
-          </Tabs.TabPane>
-        </Tabs>
+        <Tabs
+          defaultActiveKey="1"
+          items={[
+            {
+              label: 'Teams',
+              key: '1',
+              children: (
+                <Table
+                  columns={teamsColumns}
+                  dataSource={teams}
+                  rowKey="_id"
+                  loading={loading}
+                />
+              )
+            },
+            {
+              label: 'Events',
+              key: '2',
+              children: (
+                <div className="tab-content">
+                  <Button
+                    type="primary"
+                    icon={<PlusOutlined />}
+                    onClick={() => setIsEventModalVisible(true)}
+                  >
+                    Add Event
+                  </Button>
+                  <Table
+                    columns={eventsColumns}
+                    dataSource={events}
+                    rowKey="_id"
+                    loading={loading}
+                    className="table-margin-top"
+                  />
+                </div>
+              )
+            },
+            {
+              label: 'Results',
+              key: '3',
+              children: (
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => setIsResultModalVisible(true)}
+                  style={{ marginBottom: '20px' }}
+                >
+                  Add Result
+                </Button>
+              )
+            },
+            {
+              label: 'Leaderboard',
+              key: '4',
+              children: (
+                <Table
+                  columns={leaderboardColumns}
+                  dataSource={leaderboard}
+                  rowKey="_id"
+                  loading={loading}
+                />
+              )
+            }
+          ]}
+        />
 
         {/* Add Event Modal */}
         <Modal
@@ -257,11 +310,89 @@ export const CoordinatorDashboard = () => {
               name="eventType"
               rules={[{ required: true }]}
             >
-              <Select>
+              <Select onChange={(value) => {
+                setSelectedEventType(value);
+                // Auto-set requiredMembers based on event type
+                if (value === 'Solo') {
+                  eventForm.setFieldValue('requiredMembers', 1);
+                } else if (value === 'Duet') {
+                  eventForm.setFieldValue('requiredMembers', 2);
+                } else if (value === 'Group') {
+                  eventForm.setFieldValue('requiredMembers', undefined);
+                }
+              }}>
                 <Select.Option value="Solo">Solo</Select.Option>
                 <Select.Option value="Duet">Duet</Select.Option>
                 <Select.Option value="Group">Group</Select.Option>
               </Select>
+            </Form.Item>
+            <Form.Item
+              label="Required Members"
+              name="requiredMembers"
+              rules={[
+                { required: true, message: 'Please enter required members' },
+                {
+                  validator: (_, value) => {
+                    if (!selectedEventType) return Promise.resolve();
+                    if (selectedEventType === 'Solo' && value !== 1) {
+                      return Promise.reject('Solo event must have exactly 1 member');
+                    }
+                    if (selectedEventType === 'Duet' && value !== 2) {
+                      return Promise.reject('Duet event must have exactly 2 members');
+                    }
+                    if (selectedEventType === 'Group' && value < 3) {
+                      return Promise.reject('Group event must have at least 3 members');
+                    }
+                    return Promise.resolve();
+                  }
+                }
+              ]}
+            >
+              <Input type="number" min={selectedEventType === 'Group' ? 3 : 1} disabled={selectedEventType === 'Solo' || selectedEventType === 'Duet'} placeholder={
+                selectedEventType === 'Solo' ? '1' : selectedEventType === 'Duet' ? '2' : 'Enter number (minimum 3)'
+              } />
+            </Form.Item>
+            <Form.Item
+              label="Start Time"
+              name="startTime"
+              rules={[{ required: true, message: 'Please select start time' }]}
+            >
+              <DatePicker 
+                showTime 
+                format="YYYY-MM-DD HH:mm"
+                style={{ width: '100%' }}
+                placeholder="Select start time"
+              />
+            </Form.Item>
+            <Form.Item
+              label="End Time"
+              name="endTime"
+              rules={[
+                { required: true, message: 'Please select end time' },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    const startTime = getFieldValue('startTime');
+                    if (!value || !startTime || value.isAfter(startTime)) {
+                      return Promise.resolve();
+                    }
+                    return Promise.reject('End time must be after start time');
+                  }
+                })
+              ]}
+            >
+              <DatePicker 
+                showTime 
+                format="YYYY-MM-DD HH:mm"
+                style={{ width: '100%' }}
+                placeholder="Select end time"
+              />
+            </Form.Item>
+            <Form.Item
+              label="Venue"
+              name="venue"
+              rules={[{ required: true, message: 'Please enter venue' }]}
+            >
+              <Input placeholder="Enter event venue" />
             </Form.Item>
             <Form.Item
               label="1st Place Points"
@@ -294,7 +425,10 @@ export const CoordinatorDashboard = () => {
         <Modal
           title="Add Result"
           open={isResultModalVisible}
-          onCancel={() => setIsResultModalVisible(false)}
+          onCancel={() => {
+            setIsResultModalVisible(false);
+            setSelectedEventForResult(null);
+          }}
           footer={null}
         >
           <Form form={resultForm} layout="vertical" onFinish={handleAddResult}>
@@ -303,10 +437,13 @@ export const CoordinatorDashboard = () => {
               name="eventId"
               rules={[{ required: true }]}
             >
-              <Select placeholder="Select event">
+              <Select placeholder="Select event" onChange={(value) => {
+                const event = events.find(e => e._id === value);
+                setSelectedEventForResult(event);
+              }}>
                 {events.map(event => (
                   <Select.Option key={event._id} value={event._id}>
-                    {event.eventName}
+                    {event.eventName} ({event.eventType}) - Requires {event.requiredMembers} member(s)
                   </Select.Option>
                 ))}
               </Select>
@@ -320,6 +457,34 @@ export const CoordinatorDashboard = () => {
                 {teams.map(team => (
                   <Select.Option key={team._id} value={team._id}>
                     {team.teamName}
+                  </Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+            <Form.Item
+              label={selectedEventForResult ? `Technocrats (Select exactly ${selectedEventForResult.requiredMembers})` : 'Technocrats'}
+              name="technocratIds"
+              rules={[
+                { required: true, message: 'Please select technocrats' },
+                {
+                  validator: (_, value) => {
+                    if (!selectedEventForResult) return Promise.resolve();
+                    if (!value || value.length !== selectedEventForResult.requiredMembers) {
+                      return Promise.reject(`Please select exactly ${selectedEventForResult.requiredMembers} member(s)`);
+                    }
+                    return Promise.resolve();
+                  }
+                }
+              ]}
+            >
+              <Select
+                mode="multiple"
+                placeholder="Select technocrats"
+                maxTagCount="responsive"
+              >
+                {technocrats.map(tech => (
+                  <Select.Option key={tech._id} value={tech._id}>
+                    {tech.name} ({tech.email})
                   </Select.Option>
                 ))}
               </Select>

@@ -24,12 +24,14 @@ export const ownerAPI = {
   addTechnocrat: (data) => api.post('/owner/technocrat', data),
   editTechnocrat: (id, data) => api.put(`/owner/technocrat/${id}`, data),
   deleteTechnocrat: (id) => api.delete(`/owner/technocrat/${id}`),
-  assignEvents: (data) => api.post('/owner/assign-events', data),
+  assignEvents: (technocratId, eventIds) =>
+    api.post('/owner/assign-events', { technocratId, eventIds }),
   removeEventAssignment: (technocratId, eventId) =>
     api.delete(`/owner/remove-event/${technocratId}/${eventId}`),
-  setIconPlayer: (data) => api.post('/owner/set-icon-player', data),
+  setIconPlayer: (technocratId) => api.post('/owner/set-icon-player', { technocratId }),
   getTeamScores: () => api.get('/owner/team-scores'),
-  getLeaderboard: () => api.get('/owner/leaderboard')
+  getLeaderboard: () => api.get('/owner/leaderboard'),
+  getAllEvents: () => api.get('/owner/all-events')
 };
 
 // Coordinator API
