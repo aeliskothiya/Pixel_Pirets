@@ -13,7 +13,7 @@ if (fs.existsSync(backendEnvPath)) {
 
 const connectDB = async () => {
   try {
-    await mongoose.connect(process.env.MONGO_URI || 'mongodb+srv://admin:lucifer_123@cluster0.pa3yeyv.mongodb.net/pixel_pirates?retryWrites=true&w=majority', {
+    await mongoose.connect(process.env.MONGO_URI || 'mongodb+srv://admin:lucifer_123@cluster0.pa3yeyv.mongodb.net/db', {
       useNewUrlParser: true,
       useUnifiedTopology: true
     });
