@@ -10,11 +10,15 @@ export const registerOwner = async (req, res) => {
   try {
     const { name, email, password, teamName, teamCode, ownerContact } = req.body;
 
+    console.log('Registration attempt with:', { name, email, teamName, teamCode, ownerContact });
+
     // Validate required fields
     if (!name || !email || !password || !teamName || !teamCode || !ownerContact) {
+      console.log('Missing required fields');
       return res.status(400).json({
         success: false,
-        message: 'Please provide all required fields'
+        message: 'Please provide all required fields',
+        received: { name, email, password, teamName, teamCode, ownerContact }
       });
     }
 
@@ -34,6 +38,8 @@ export const registerOwner = async (req, res) => {
       password,
       role: 'owner'
     });
+    
+    console.log('Owner created:', owner._id);
 
     // Now create team with owner reference
     const team = await Team.create({
@@ -46,10 +52,14 @@ export const registerOwner = async (req, res) => {
         contact: ownerContact
       }
     });
+    
+    console.log('Team created:', team._id);
 
     // Update owner with team reference
     owner.team = team._id;
-    await owner.save();
+    const savedOwner = await owner.save();
+    
+    console.log('Owner updated with team:', savedOwner._id);
 
     const token = generateToken(owner);
 
@@ -70,9 +80,11 @@ export const registerOwner = async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('Registration error:', error);
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 };

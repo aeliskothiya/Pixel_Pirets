@@ -1,9 +1,20 @@
+import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import connectDB from './config/database.js';
 import ownerRoutes from './routes/ownerRoutes.js';
 import coordinatorRoutes from './routes/coordinatorRoutes.js';
+
+// Load environment variables
+const backendEnvPath = path.resolve(process.cwd(), 'Backend', '.env');
+if (fs.existsSync(backendEnvPath)) {
+  dotenv.config({ path: backendEnvPath });
+} else {
+  dotenv.config();
+}
 
 const app = express();
 

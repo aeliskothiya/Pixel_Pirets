@@ -1,10 +1,19 @@
 import mongoose from 'mongoose';
-import bcrypt from 'bcryptjs';
+import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
 import Coordinator from './models/Coordinator.js';
+
+const backendEnvPath = path.resolve(process.cwd(), 'Backend', '.env');
+if (fs.existsSync(backendEnvPath)) {
+  dotenv.config({ path: backendEnvPath });
+} else {
+  dotenv.config();
+}
 
 const connectDB = async () => {
   try {
-    await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/pixel_pirates', {
+    await mongoose.connect(process.env.MONGO_URI || 'mongodb+srv://admin:lucifer_123@cluster0.pa3yeyv.mongodb.net/pixel_pirates?retryWrites=true&w=majority', {
       useNewUrlParser: true,
       useUnifiedTopology: true
     });
